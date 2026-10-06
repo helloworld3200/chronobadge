@@ -91,7 +91,7 @@ def fetchLifespan(
     finalAPIURL: str = f"{apiURLPrefix}{user}"
 
     logging.info(f"Requesting from: {finalAPIURL}")
-    logging.info(f"Dispatching GET with headers: {headers}")
+    logging.info(f"Dispatching GET with headers: \n {headers}")
     
     res: httpx.Response = httpx.get(finalAPIURL, headers=headers)
     logging.info(f"Received response with status code: {res.status_code}")
@@ -127,7 +127,7 @@ def setupLogging() -> None:
     # Setup logging to print to console
     logging.basicConfig(
         level="INFO",
-        format="%(asctime)s - %(levelname)s - %(message)s",
+        format="%(asctime)s.%(msecs)03d - %(levelname)s - %(message)s",
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
