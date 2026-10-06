@@ -5,6 +5,7 @@ import sys
 import httpx
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
+import logging
 
 DESCRIPTION = "Generates GitHub profile badges that say how long you've been on GitHub."
 CREDITS = "Made by helloworld3200 on GitHub with ❤️!"
@@ -63,7 +64,7 @@ class Lifespan:
 def calcLifespan(dt: datetime, daysYr: float = 365.25, daysMo: float = 30.44) -> Lifespan:
     now: datetime = datetime.now(timezone.utc)
     diff: timedelta = now - dt
-    print(f"Calculated time delta: {diff}")
+    logging.info(f"Calculated time delta: {diff}")
 
     # Extract years
     years: int = int(diff.days // daysYr)
@@ -88,14 +89,15 @@ def fetchLifespan(
 
     # Dispatch GET request
     finalAPIURL: str = f"{apiURLPrefix}{user}"
-    print(f"Requesting from: {finalAPIURL}")
+    logging.info(f"Requesting from: {finalAPIURL}")
+    logging.info(f"")
     res: httpx.Response = httpx.get(finalAPIURL, headers=headers)
     res.raise_for_status()
 
     # Parse to JSON and retrieve created_at field; convert to datetime
     data: dict = res.json()
     created: str = data[creationKey]
-    print(f"Retrieved creation timestamp: {created}")
+    logging.info(f"Retrieved creation timestamp: {created}")
     dt: datetime = datetime.fromisoformat(created) # Older tutorials will say to replace Z with +00:00 but since like py 3.11 its no longer needed
 
     # Calculate lifespan and format
@@ -110,19 +112,28 @@ def dropBadge():
     pass
 
 def handleCLI(args: argparse.Namespace) -> None:
-    print(f"Fetching lifespan for user: {args.user}")
+    logging.info(f"Fetching lifespan for user: {args.user}")
 
     lifespan = fetchLifespan(args.user)
 
-    print(f"Full calculated lifespan: {lifespan.years} years, {lifespan.months} months, {lifespan.days} days")
+    logging.info(f"Full calculated lifespan: {lifespan.years} years, {lifespan.months} months, {lifespan.days} days")
     
+def setupLogging() -> None:
+    # Setup logging to print to console
+    logging.basicConfig(
+        level="INFO",
+        format="%(asctime)s - %(levelname)s - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
 
 def main() -> None:
+    setupLogging()
+
     # Parse CLI args then handover to main handler
     parser = buildParser()
     args = parser.parse_args()
 
-    print(f"Chronobadge v{VER}. {CREDITS}")
+    logging.info(f"Chronobadge v{VER}. {CREDITS}")
     handleCLI(args)
 
 if __name__ == "__main__":
