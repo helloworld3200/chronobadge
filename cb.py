@@ -89,8 +89,10 @@ def fetchLifespan(
 
     # Dispatch GET request
     finalAPIURL: str = f"{apiURLPrefix}{user}"
+
     logging.info(f"Requesting from: {finalAPIURL}")
     logging.info(f"Dispatching GET with headers: {headers}")
+    
     res: httpx.Response = httpx.get(finalAPIURL, headers=headers)
     logging.info(f"Received response with status code: {res.status_code}")
     res.raise_for_status()
