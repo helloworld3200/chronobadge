@@ -90,8 +90,9 @@ def fetchLifespan(
     # Dispatch GET request
     finalAPIURL: str = f"{apiURLPrefix}{user}"
     logging.info(f"Requesting from: {finalAPIURL}")
-    logging.info(f"")
+    logging.info(f"Dispatching GET with headers: {headers}")
     res: httpx.Response = httpx.get(finalAPIURL, headers=headers)
+    logging.info(f"Received response with status code: {res.status_code}")
     res.raise_for_status()
 
     # Parse to JSON and retrieve created_at field; convert to datetime
@@ -105,7 +106,7 @@ def fetchLifespan(
 
     return lifespan
 
-def buildBadge():
+def buildBadge(icon, color, precision, message, lifespan):
     pass
 
 def dropBadge():
@@ -117,7 +118,9 @@ def handleCLI(args: argparse.Namespace) -> None:
     lifespan = fetchLifespan(args.user)
 
     logging.info(f"Full calculated lifespan: {lifespan.years} years, {lifespan.months} months, {lifespan.days} days")
-    
+
+    buildBadge()
+
 def setupLogging() -> None:
     # Setup logging to print to console
     logging.basicConfig(
