@@ -11,6 +11,8 @@ DESCRIPTION = "Generates GitHub profile badges that say how long you've been on 
 CREDITS = "Made by helloworld3200 on GitHub with ❤️!"
 VER = "1.0.0"
 
+PRECISION = ["days", "months", "years"]
+
 def buildParser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description = DESCRIPTION,
@@ -42,7 +44,7 @@ def buildParser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--precision", type=str, choices=["days", "months", "years"], default="days", help="Precision of the date"
+        "--precision", type=str, choices=PRECISION, default="days", help="Precision of the date"
     )
 
     parser.add_argument(
@@ -108,20 +110,72 @@ def fetchLifespan(
 
     return lifespan
 
-def buildBadge(icon, color, precision, message, lifespan):
+# Styling, spacing etc for the badge - all sizing in pixels
+@dataclass
+class BadgeDrawStyle:
+    # Fonts: any TrueType path, or a filename Pillow can find on your system.
+    caption_font: str = "fonts/Montserrat-Light.ttf"
+    title_font: str = "fonts/Montserrat-Medium.ttf"
+    caption_size: int = 18
+    title_size: int = 40
+ 
+    # Spacing
+    line_gap: int = 4  # caption -> title
+    icon_gap: int = 12  # icon -> text block
+    margin: int = 16  # content -> border
+    border_width: int = 2  # set to 0 to disable
+ 
+    # Icon
+    icon_set: str = "lucide"
+    icon_height_ratio: float = 1.0  # icon height relative to the text block
+    icon_supersample: int = 4  # render big, then downscale for crisp edges
+
+# Final data which is sent to drawBadge after data is processed by buildBadge
+@dataclass
+class BadgeDrawData:
+    caption: str
+    title: str
+    iconName: str
+    colour: str
+
+def drawBadge(badgeData: BadgeDrawData):
     pass
+
+def buildBadge(lifespan: Lifespan, precision: str, message: str, color: str, icon: str) -> None:
+    # Build the lifespan according to precision (eventually this is drawn as 'title')
+    yearsStr: str = f"{lifespan.years} years" if lifespan.years > 0 else ""
+    monthsStr: str = f"{lifespan.months} months"
+    daysStr: str = f"{lifespan.days} days"
+
+    if lifespan.years == 0 and precision == "years":
+        logging.warning("Precision set to 'years' but lifespan is less than a year. Defaulting to 'months'.")
+        precision = "months"
+    elif lifespan.months == 0 and precision == "months":
+        logging.warning("Precision set to 'months' but lifespan is less than a month. Defaulting to 'days'.")
+        precision = "days"
+
+    title: str = ""
+    match precision:
+        case "years":
+            title = yearsStr
+        case "months":
+            title = f"{yearsStr} and {monthsStr}" if yearsStr else monthsStr
+        case "days":
+            title = f"{yearsStr}, {monthsStr} and {daysStr}" if yearsStr else f"{monthsStr} and {daysStr}" if monthsStr else daysStr
+
+
 
 def dropBadge():
     pass
 
-def handleCLI(args: argparse.Namespace) -> None:
-    logging.info(f"Fetching lifespan for user: {args.user}")
+def handleCLI(args: dict) -> None:
+    logging.info(f"Fetching lifespan for user: {args["user"]}")
 
-    lifespan = fetchLifespan(args.user)
+    lifespan = fetchLifespan(args["user"])
 
     logging.info(f"Full calculated lifespan: {lifespan.years} years, {lifespan.months} months, {lifespan.days} days")
 
-    buildBadge()
+    buildBadge(lifespan, args["precision"], args["message"], args["color"], args["icon"])
 
 def setupLogging() -> None:
     # Setup logging to print to console
@@ -136,7 +190,8 @@ def main() -> None:
 
     # Parse CLI args then handover to main handler
     parser = buildParser()
-    args = parser.parse_args()
+    argsNS = parser.parse_args()
+    args = vars(argsNS)  # Convert Namespace to dict for easier access
 
     logging.info(f"Chronobadge v{VER}. {CREDITS}")
     handleCLI(args)
