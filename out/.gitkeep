@@ -1,0 +1,3 @@
+Placeholder file to tell git to keep the directory stored
+
+(so that any image saved to the /out dir doesnt throw an error because the directory doesnt exist)
