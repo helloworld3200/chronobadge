@@ -189,8 +189,10 @@ def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> 
     ruler = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     cap_box = ruler.textbbox((0, 0), data.caption, font=caption_font)
     title_box = ruler.textbbox((0, 0), data.title, font=title_font)
+
     cap_h = cap_box[3] - cap_box[1]
     title_h = title_box[3] - title_box[1]
+    
     text_w = max(cap_box[2] - cap_box[0], title_box[2] - title_box[0])
     text_h = cap_h + style.line_gap + title_h
  
