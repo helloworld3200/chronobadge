@@ -54,7 +54,7 @@ def buildParser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--icon", type=str, default="clock", help="Icon to display on the badge, leave blank for no icon"
+        "--icon", type=str, default="clock", help="Any lucide icon to display on the badge, leave blank for no icon"
     )
 
     return parser
@@ -347,6 +347,7 @@ def handleArgs() -> dict:
     return args
 
 def main() -> None:
+    setupLogging()
     buildBadge(Lifespan(years=1, months=2, days=3), "days", "I've been on GitHub for", "#0000FF", "clock")
     #handleCLI()
 
