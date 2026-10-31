@@ -1,4 +1,4 @@
-from PIL import Image
+from PIL import Image, ImageColor, ImageDraw, ImageFont
 import argparse
 import os
 import sys
@@ -6,6 +6,8 @@ import httpx
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
 import logging
+from iconipy import IconFactory
+from typing import cast, Tuple
 
 DESCRIPTION = "Generates GitHub profile badges that say how long you've been on GitHub."
 CREDITS = "Made by helloworld3200 on GitHub with ❤️!"
@@ -110,6 +112,28 @@ def fetchLifespan(
 
     return lifespan
 
+# Attempts to load a font and falls back to default if this isn't possible
+def safeLoadFont(path: str, size: int) -> ImageFont.BaseImageFont:
+    try:
+        return ImageFont.truetype(path, size)
+    except OSError:
+        logging.warning(f"Couldn't load font {path}; falling back to Pillow's default.")
+        return ImageFont.load_default(size)
+
+def renderIcon(name: str, rgba: tuple, height: int, style: BadgeDrawStyle) -> Image.Image:
+    # Fetch an icon via iconipy, trim its padding and scale it to height px.
+    px = height * style.icon_supersample
+    factory = IconFactory(icon_set=style.icon_set, icon_size=px, font_size=px, font_color=rgba)
+ 
+    alpha = factory.asPil(name).getchannel("A")
+    alpha = alpha.crop(alpha.getbbox())  # drop the glyph's built-in padding
+    width = max(1, round(alpha.width * height / alpha.height))
+    alpha = alpha.resize((width, height), Image.Resampling.LANCZOS)
+ 
+    icon = Image.new("RGBA", alpha.size, rgba)  # rebuild from the mask for a clean colour
+    icon.putalpha(alpha)
+    return icon
+
 # Styling, spacing etc for the badge - all sizing in pixels
 @dataclass
 class BadgeDrawStyle:
@@ -138,37 +162,156 @@ class BadgeDrawData:
     iconName: str
     colour: str
 
-def drawBadge(badgeData: BadgeDrawData):
-    pass
+def drawIcon(name: str, rgba: tuple, height: int, style: BadgeDrawStyle) -> Image.Image:
+    px = height * style.icon_supersample
+    factory = IconFactory(icon_set=style.icon_set, icon_size=px, font_size=px, font_color=rgba)
+ 
+    alpha = factory.asPil(name).getchannel("A")
+    alpha = alpha.crop(alpha.getbbox())  # drop the glyph's built-in padding
 
-def buildBadge(lifespan: Lifespan, precision: str, message: str, color: str, icon: str) -> None:
+    # Recalculate width/height to scale to while PRESERVING ASP RATIO
+    width = max(1, round(alpha.width * height / alpha.height))
+    alpha = alpha.resize((width, height), Image.Resampling.LANCZOS)
+ 
+    icon = Image.new("RGBA", alpha.size, rgba)  # rebuild from the mask for a clean colour
+    icon.putalpha(alpha)
+
+    return icon
+
+def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> Image.Image:
+    # Stops type errors downstream by letting Pylance know this defo returns a tuple!
+    rgba = cast(Tuple[int, int, int, int], ImageColor.getcolor(data.colour, "RGBA"))
+ 
+    caption_font = safeLoadFont(style.caption_font, style.caption_size)
+    title_font = safeLoadFont(style.title_font, style.title_size)
+ 
+    # Measure the actual ink so the margins look even whatever the font metrics.
+    ruler = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
+    cap_box = ruler.textbbox((0, 0), data.caption, font=caption_font)
+    title_box = ruler.textbbox((0, 0), data.title, font=title_font)
+    cap_h = cap_box[3] - cap_box[1]
+    title_h = title_box[3] - title_box[1]
+    text_w = max(cap_box[2] - cap_box[0], title_box[2] - title_box[0])
+    text_h = cap_h + style.line_gap + title_h
+ 
+    icon = drawIcon(data.iconName, rgba, round(text_h * style.icon_height_ratio), style)
+ 
+    content_w = icon.width + style.icon_gap + text_w
+    content_h = max(icon.height, text_h)
+    inset = style.border_width + style.margin
+    width, height = content_w + 2 * inset, content_h + 2 * inset
+
+    # Only convert to int at last stage; but here we have it: integer px dimensions for the img size.
+    intDims = (int(width), int(height))
+ 
+    # Transparent, but with the text colour baked into the RGB channels so
+    # anti-aliased edges don't pick up a dark fringe.
+    canvas = Image.new("RGBA", intDims, (*rgba[:3], 0))
+    draw = ImageDraw.Draw(canvas)
+ 
+    if style.border_width:
+        draw.rectangle((0, 0, width - 1, height - 1), outline=rgba, width=style.border_width)
+
+    # Blit drawn icon image
+    canvas.alpha_composite(icon, 
+        (inset, int(inset + (content_h - icon.height) // 2))
+    )
+
+    # Positions for text boxes
+    text_x = inset + icon.width + style.icon_gap
+    text_y = inset + (content_h - text_h) // 2
+    
+    # Caption
+    draw.text(
+        (text_x - cap_box[0], text_y - cap_box[1]), 
+        data.caption, font=caption_font, fill=rgba
+    )
+
+    # Title
+    draw.text(
+        (text_x - title_box[0], text_y + cap_h + style.line_gap - title_box[1]),
+        data.title,
+        font=title_font,
+        fill=rgba,
+    )
+
+    return canvas
+
+def writeTitle(lifespan: Lifespan, precision: str) -> str:
     # Build the lifespan according to precision (eventually this is drawn as 'title')
-    yearsStr: str = f"{lifespan.years} years" if lifespan.years > 0 else ""
-    monthsStr: str = f"{lifespan.months} months"
-    daysStr: str = f"{lifespan.days} days"
 
-    if lifespan.years == 0 and precision == "years":
+    # This entire next bit is to handle when the lifespan is less than a year/month
+    # so as to avoid things like '0 years, 0 months, 12 days' (or any other combo of 0 years/months)
+
+    # Users lifespan is assumed to be at least a day
+
+    # All the bool tests should be based on this - ergo DO NOT do something like 'if yearsStr', only do 'if hasYears'
+    hasYears: bool = lifespan.years > 0
+    # In the case the year > 1 but month = 0 this still counts as having months because having a year implies having a month
+    hasMonths: bool = (lifespan.months > 0) or hasYears
+
+    # Returns the normalised (with/without plurals) strings for years, months and days based on the lifespan
+    def normWords(num: int, suffix: str) -> str:
+        return f"{num} {suffix}" + ("s" if num != 1 else "")
+
+    yearsStr: str = normWords(lifespan.years, "year")
+    monthsStr: str = normWords(lifespan.months, "month")
+    daysStr: str = normWords(lifespan.days, "day")
+
+    # Ensure precision is valid - so if theres a years precision but lifespan < 1 year, clamp it to months - etc.
+    
+    # its in this order because lifespan < month IMPLIES lifespan < year so obv we only run the second elif if the first fails.
+    if (not hasMonths) and ((precision == "months") or (precision == "years")):
+        logging.warning("Precision set to 'months' or 'years' but lifespan is less than a month. Defaulting to 'days'.")
+        precision = "days"
+    elif (not hasYears) and (precision == "years"):
         logging.warning("Precision set to 'years' but lifespan is less than a year. Defaulting to 'months'.")
         precision = "months"
-    elif lifespan.months == 0 and precision == "months":
-        logging.warning("Precision set to 'months' but lifespan is less than a month. Defaulting to 'days'.")
-        precision = "days"
 
     title: str = ""
     match precision:
         case "years":
             title = yearsStr
         case "months":
-            title = f"{yearsStr} and {monthsStr}" if yearsStr else monthsStr
+            # If we have years, then we want to show both years and months, otherwise just months
+            title = f"{yearsStr} and {monthsStr}" if hasYears else monthsStr
         case "days":
-            title = f"{yearsStr}, {monthsStr} and {daysStr}" if yearsStr else f"{monthsStr} and {daysStr}" if monthsStr else daysStr
+            # Same thing but one more level down.
+            title = f"{yearsStr}, {monthsStr} and {daysStr}" if hasYears else (f"{monthsStr} and {daysStr}" if hasMonths else daysStr)
 
+    return title
 
+def buildBadge(lifespan: Lifespan, precision: str, message: str, color: str, icon: str, style: BadgeDrawStyle = BadgeDrawStyle()) -> None:
+    title = writeTitle(lifespan, precision)
+    logging.info(f"Computed title for badge: {title}")
 
-def dropBadge():
-    pass
+    # FINALLY that handling logic is done
 
-def handleCLI(args: dict) -> None:
+    bdd = BadgeDrawData(
+        caption=message,
+        title=title,
+        iconName=icon,
+        colour=color
+    )
+
+    img = drawBadge(bdd, style)
+    dropBadge(img, "out/badge.png")
+
+def dropBadge(img: Image.Image, path: str) -> None:
+    img.save(path)
+    logging.info(f"Saved badge to {path}")
+
+def welcome(msg: str = f"Chronobadge v{VER}. {CREDITS}") -> None:
+    logging.info(msg)
+
+def handleCLI() -> None:
+    # Parse CLI args
+    args = handleArgs()
+
+    # Setup logging format and welcome user
+    setupLogging()
+    welcome()
+
     logging.info(f"Fetching lifespan for user: {args["user"]}")
 
     lifespan = fetchLifespan(args["user"])
@@ -185,16 +328,17 @@ def setupLogging() -> None:
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-def main() -> None:
-    setupLogging()
-
-    # Parse CLI args then handover to main handler
+def handleArgs() -> dict:
+    # TODO: Add
     parser = buildParser()
     argsNS = parser.parse_args()
     args = vars(argsNS)  # Convert Namespace to dict for easier access
 
-    logging.info(f"Chronobadge v{VER}. {CREDITS}")
-    handleCLI(args)
+    return args
+
+def main() -> None:
+    buildBadge(Lifespan(years=1, months=2, days=3), "days", "I've been on GitHub for", "#0000FF", "clock")
+    #handleCLI()
 
 if __name__ == "__main__":
     main()
