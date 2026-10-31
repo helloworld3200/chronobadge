@@ -195,6 +195,7 @@ def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> 
     text_h = cap_h + style.line_gap + title_h
  
     icon = drawIcon(data.iconName, rgba, round(text_h * style.icon_height_ratio), style)
+    logging.info(f"Icon size: {icon.width}x{icon.height}, Text block size: {text_w}x{text_h}")
  
     content_w = icon.width + style.icon_gap + text_w
     content_h = max(icon.height, text_h)
@@ -211,6 +212,8 @@ def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> 
  
     if style.border_width:
         draw.rectangle((0, 0, width - 1, height - 1), outline=rgba, width=style.border_width)
+    
+    logging.info(f"Canvas size: {canvas.width}x{canvas.height}")
 
     # Blit drawn icon image
     canvas.alpha_composite(icon, 
@@ -222,18 +225,22 @@ def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> 
     text_y = inset + (content_h - text_h) // 2
     
     # Caption
+    capPos = (text_x - cap_box[0], text_y - cap_box[1])
     draw.text(
-        (text_x - cap_box[0], text_y - cap_box[1]), 
+        capPos,
         data.caption, font=caption_font, fill=rgba
     )
 
     # Title
+    titlePos = (text_x - title_box[0], text_y + cap_h + style.line_gap - title_box[1])
     draw.text(
-        (text_x - title_box[0], text_y + cap_h + style.line_gap - title_box[1]),
+        titlePos,
         data.title,
         font=title_font,
         fill=rgba,
     )
+
+    logging.info(f"Caption position: {capPos}, Title position: {titlePos}")
 
     return canvas
 
@@ -301,16 +308,15 @@ def dropBadge(img: Image.Image, path: str) -> None:
     img.save(path)
     logging.info(f"Saved badge to {path}")
 
-def welcome(msg: str = f"Chronobadge v{VER}. {CREDITS}") -> None:
-    logging.info(msg)
-
 def handleCLI() -> None:
     # Parse CLI args
     args = handleArgs()
 
     # Setup logging format and welcome user
     setupLogging()
-    welcome()
+
+    # Welcome user + show credits
+    logging.info(f"Welcome to Chronobadge v{VER}. {CREDITS}")
 
     logging.info(f"Fetching lifespan for user: {args["user"]}")
 
@@ -319,6 +325,8 @@ def handleCLI() -> None:
     logging.info(f"Full calculated lifespan: {lifespan.years} years, {lifespan.months} months, {lifespan.days} days")
 
     buildBadge(lifespan, args["precision"], args["message"], args["color"], args["icon"])
+
+    logging.info(f"Done!")
 
 def setupLogging() -> None:
     # Setup logging to print to console
