@@ -1,3 +1,4 @@
 pillow
 httpx
 iconipy
+json-with-comments

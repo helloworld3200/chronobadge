@@ -1,7 +1,6 @@
 from PIL import Image, ImageColor, ImageDraw, ImageFont
 import argparse
-import os
-import sys
+import jsonc
 import httpx
 from datetime import datetime, timedelta, timezone
 from dataclasses import dataclass
@@ -39,6 +38,8 @@ def buildParser() -> argparse.ArgumentParser:
     # all this:
     # will generate the badge, save it to the specific output.
 
+    # also --config to specify a JSONC config file to load arguments from (optional); WARNING: if you use this it will override anything you put in the CLI!
+
     parser.add_argument(
         "--output", type=str, default="out/badge.png", help="Output file path"
     )
@@ -59,7 +60,12 @@ def buildParser() -> argparse.ArgumentParser:
         "--icon", type=str, default="clock", help="Any lucide icon to display on the badge, leave blank for no icon"
     )
 
-    # Some additional ones
+    parser.add_argument(
+        "--config", type=str, default=None, help="Path to a JSON config file to load arguments from (optional); WARNING: if you use this it will override anything you put in the CLI!"
+    )
+
+    # Some additional misc ones
+    
     parser.add_argument(
         "-V", "--version", action="version", version=f"%(prog)s {VER}", help="Show program name & version number and exit"
     )
@@ -355,12 +361,22 @@ def setupLogging() -> None:
     )
 
 def handleArgs() -> dict:
-    # TODO: Add 
     parser = buildParser()
     argsNS = parser.parse_args()
-    args = vars(argsNS)  # Convert Namespace to dict for easier access
+    cliArgs = vars(argsNS)  # Convert Namespace to dict for easier access
 
-    return args
+    if not cliArgs["config"]: return cliArgs  # If no config file is specified, return the CLI args as-is
+
+    # If config file specified, load it and parse it, then return the parsed dict, overriding any CLI args.
+    with open(cliArgs["config"], "r", encoding="utf-8") as f:
+        configArgs = jsonc.load(f)
+
+    # Merge configArgs into cliArgs, overriding any CLI args with config values
+    # also ensures default values are preserved if they arent specified in the config
+    # so that the program definitely has a complete set of args to work with.
+    mergedArgs = {**cliArgs, **configArgs}
+
+    return mergedArgs
 
 def main() -> None:
     #setupLogging()
