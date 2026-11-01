@@ -1,0 +1,17 @@
+{
+    // Chronobadge config file
+    // This will be read by the script to generate your badge.
+
+    // Replace the "user" field below with your own username!
+    // This is the only REQUIRED field you need to fill in.
+    "user": "helloworld3200",
+
+    // Customise any of these following options to your liking.
+    "precision": "days", // Can be "days", "months", or "years".
+    "message": "I've been on GitHub for", // Message to display on the badge above the time youve spent on GitHub, leave blank for no message
+    "color": "#927B8E", // Any valid hex color code. Default is my personal preference: a clean, understated mauve - #927B8E.
+    "icon": "clock", // Any Lucide (https://lucide.dev/icons) icon name to put on your badge, leave blank for no icon
+
+    // Don't change anything below unless you know what you're doing
+    "output": "out/badge.png"
+}

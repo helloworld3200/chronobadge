@@ -64,6 +64,7 @@ def buildParser() -> argparse.ArgumentParser:
         "--icon", type=str, default="clock", help="Any lucide icon to display on the badge, leave blank for no icon"
     )
 
+    # Config file - optional
     parser.add_argument(
         "--config", type=str, default=None, help="Path to a JSON config file to load arguments from (optional); WARNING: if you use this it will override anything you put in the CLI!"
     )
