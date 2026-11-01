@@ -1,0 +1,36 @@
+name: Generate Chronobadge
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+    GenerateBadge:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Set up Python 3.14 with cache
+              uses: actions/setup-python@v7
+              with:
+                python-version: '3.14'
+                cache: 'pip'
+
+            - name: Update pip
+              run: |
+                python -m pip install --upgrade pip
+
+            - name: Install dependencies
+              run: |
+                pip install -r requirements.txt
+
+            - name: Run Chronobadge script with config file
+              run: |
+                python chronobadge.py --config config.jsonc
+
+            - name: Upload badge artifact
+              uses: actions/upload-artifact@v3
+              with:
+                name: chronobadge
