@@ -9,9 +9,10 @@ import logging
 from iconipy import IconFactory
 from typing import cast, Tuple
 
+VER = "1.0.0"
 DESCRIPTION = "Generates GitHub profile badges that say how long you've been on GitHub."
 CREDITS = "Made by helloworld3200 on GitHub with ❤️!"
-VER = "1.0.0"
+NAME = "Chronobadge"
 
 PRECISION = ["days", "months", "years"]
 
@@ -50,11 +51,16 @@ def buildParser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--color", type=str, default="#0000FF", help="Color of the badge"
+        "--color", type=str, default="#927B8E", help="Color of the badge in hex; default is an understated mauve."
     )
 
     parser.add_argument(
         "--icon", type=str, default="clock", help="Any lucide icon to display on the badge, leave blank for no icon"
+    )
+
+    # Some additional ones
+    parser.add_argument(
+        "--version"
     )
 
     return parser
@@ -120,39 +126,25 @@ def safeLoadFont(path: str, size: int) -> ImageFont.BaseImageFont:
         logging.warning(f"Couldn't load font {path}; falling back to Pillow's default.")
         return ImageFont.load_default(size)
 
-def renderIcon(name: str, rgba: tuple, height: int, style: BadgeDrawStyle) -> Image.Image:
-    # Fetch an icon via iconipy, trim its padding and scale it to height px.
-    px = height * style.icon_supersample
-    factory = IconFactory(icon_set=style.icon_set, icon_size=px, font_size=px, font_color=rgba)
- 
-    alpha = factory.asPil(name).getchannel("A")
-    alpha = alpha.crop(alpha.getbbox())  # drop the glyph's built-in padding
-    width = max(1, round(alpha.width * height / alpha.height))
-    alpha = alpha.resize((width, height), Image.Resampling.LANCZOS)
- 
-    icon = Image.new("RGBA", alpha.size, rgba)  # rebuild from the mask for a clean colour
-    icon.putalpha(alpha)
-    return icon
-
 # Styling, spacing etc for the badge - all sizing in pixels
 @dataclass
 class BadgeDrawStyle:
     # Fonts: any TrueType path, or a filename Pillow can find on your system.
-    caption_font: str = "fonts/Montserrat-Light.ttf"
-    title_font: str = "fonts/Montserrat-Medium.ttf"
-    caption_size: int = 18
-    title_size: int = 40
+    captionFont: str = "fonts/Montserrat-Regular.ttf"
+    titleFont: str = "fonts/Montserrat-Medium.ttf"
+    captionSize: int = 18
+    titleSize: int = 40
  
     # Spacing
-    line_gap: int = 4  # caption -> title
-    icon_gap: int = 12  # icon -> text block
+    lineGap: int = 4  # caption -> title
+    iconGap: int = 12  # icon -> text block
     margin: int = 16  # content -> border
-    border_width: int = 2  # set to 0 to disable
+    borderWidth: int = 2  # set to 0 to disable
  
     # Icon
-    icon_set: str = "lucide"
-    icon_height_ratio: float = 1.0  # icon height relative to the text block
-    icon_supersample: int = 4  # render big, then downscale for crisp edges
+    iconSet: str = "lucide"
+    iconHeightRatio: float = 1.0  # icon height relative to the text block
+    iconSupersample: int = 4  # render big, then downscale for crisp edges
 
 # Final data which is sent to drawBadge after data is processed by buildBadge
 @dataclass
@@ -162,9 +154,14 @@ class BadgeDrawData:
     iconName: str
     colour: str
 
+def newBlankImg(size: tuple = (0, 0), rgba: tuple = (0, 0, 0, 0)) -> Image.Image:
+    return Image.new("RGBA", size, rgba)
+
 def drawIcon(name: str, rgba: tuple, height: int, style: BadgeDrawStyle) -> Image.Image:
-    px = height * style.icon_supersample
-    factory = IconFactory(icon_set=style.icon_set, icon_size=px, font_size=px, font_color=rgba)
+    if name == "": return newBlankImg()  # Return a blank image if no icon is specified
+
+    px = height * style.iconSupersample
+    factory = IconFactory(icon_set=style.iconSet, icon_size=px, font_size=px, font_color=rgba)
  
     alpha = factory.asPil(name).getchannel("A")
     alpha = alpha.crop(alpha.getbbox())  # drop the glyph's built-in padding
@@ -178,31 +175,46 @@ def drawIcon(name: str, rgba: tuple, height: int, style: BadgeDrawStyle) -> Imag
 
     return icon
 
+@dataclass
+class TextDrawData:
+    text: str
+    font: ImageFont.BaseImageFont
+    position: Tuple[float, float]
+    colour: Tuple[int, int, int, int]
+
+def drawText(data: TextDrawData, canvas: Image.Image | ImageDraw.ImageDraw) -> None:
+    draw = canvas if isinstance(canvas, ImageDraw.ImageDraw) else ImageDraw.Draw(canvas)
+    draw.text(data.position, data.text, font=data.font, fill=data.colour)
+    logging.info(f"Drawn text '{data.text}' at {data.position} with colour {data.colour}")
+
+# TODO: Split this long func into smaller ones for the icon/text/base canvas - but its good to go for now.
+# (currently 70 lines, ideally each func under 50)
 def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> Image.Image:
     # Stops type errors downstream by letting Pylance know this defo returns a tuple!
     rgba = cast(Tuple[int, int, int, int], ImageColor.getcolor(data.colour, "RGBA"))
  
-    caption_font = safeLoadFont(style.caption_font, style.caption_size)
-    title_font = safeLoadFont(style.title_font, style.title_size)
+    captionFont = safeLoadFont(style.captionFont, style.captionSize)
+    titleFont = safeLoadFont(style.titleFont, style.titleSize)
  
     # Measure the actual ink so the margins look even whatever the font metrics.
     ruler = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
-    cap_box = ruler.textbbox((0, 0), data.caption, font=caption_font)
-    title_box = ruler.textbbox((0, 0), data.title, font=title_font)
+    capBox = ruler.textbbox((0, 0), data.caption, font=captionFont)
+    titleBox = ruler.textbbox((0, 0), data.title, font=titleFont)
 
-    cap_h = cap_box[3] - cap_box[1]
-    title_h = title_box[3] - title_box[1]
+    # Caption, title, calculations, and also for the text w/h.
+    capH = capBox[3] - capBox[1]
+    titleH = titleBox[3] - titleBox[1]
     
-    text_w = max(cap_box[2] - cap_box[0], title_box[2] - title_box[0])
-    text_h = cap_h + style.line_gap + title_h
+    textW = max(capBox[2] - capBox[0], titleBox[2] - titleBox[0])
+    textH = capH + style.lineGap + titleH
  
-    icon = drawIcon(data.iconName, rgba, round(text_h * style.icon_height_ratio), style)
-    logging.info(f"Icon size: {icon.width}x{icon.height}, Text block size: {text_w}x{text_h}")
+    icon = drawIcon(data.iconName, rgba, round(textH * style.iconHeightRatio), style)
+    logging.info(f"Icon size: {icon.width}x{icon.height}, Text block size: {textW}x{textH}")
  
-    content_w = icon.width + style.icon_gap + text_w
-    content_h = max(icon.height, text_h)
-    inset = style.border_width + style.margin
-    width, height = content_w + 2 * inset, content_h + 2 * inset
+    contentW = icon.width + style.iconGap + textW
+    contentH = max(icon.height, textH)
+    inset = style.borderWidth + style.margin
+    width, height = contentW + 2 * inset, contentH + 2 * inset
 
     # Only convert to int at last stage; but here we have it: integer px dimensions for the img size.
     intDims = (int(width), int(height))
@@ -212,37 +224,40 @@ def drawBadge(data: BadgeDrawData, style: BadgeDrawStyle = BadgeDrawStyle()) -> 
     canvas = Image.new("RGBA", intDims, (*rgba[:3], 0))
     draw = ImageDraw.Draw(canvas)
  
-    if style.border_width:
-        draw.rectangle((0, 0, width - 1, height - 1), outline=rgba, width=style.border_width)
+    if style.borderWidth:
+        draw.rectangle((0, 0, width - 1, height - 1), outline=rgba, width=style.borderWidth)
     
     logging.info(f"Canvas size: {canvas.width}x{canvas.height}")
 
     # Blit drawn icon image
     canvas.alpha_composite(icon, 
-        (inset, int(inset + (content_h - icon.height) // 2))
+        (inset, int(inset + (contentH - icon.height) // 2))
     )
 
     # Positions for text boxes
-    text_x = inset + icon.width + style.icon_gap
-    text_y = inset + (content_h - text_h) // 2
+    textX = inset + icon.width + style.iconGap
+    textY = inset + (contentH - textH) // 2
     
     # Caption
-    capPos = (text_x - cap_box[0], text_y - cap_box[1])
-    draw.text(
-        capPos,
-        data.caption, font=caption_font, fill=rgba
+    capPos = (textX - capBox[0], textY - capBox[1])
+    capData = TextDrawData(
+        text=data.caption,
+        font=captionFont,
+        position=capPos,
+        colour=rgba
     )
 
     # Title
-    titlePos = (text_x - title_box[0], text_y + cap_h + style.line_gap - title_box[1])
-    draw.text(
-        titlePos,
-        data.title,
-        font=title_font,
-        fill=rgba,
+    titlePos = (textX - titleBox[0], textY + capH + style.lineGap - titleBox[1])
+    titleData = TextDrawData(
+        text=data.title,
+        font=titleFont,
+        position=titlePos,
+        colour=rgba
     )
 
-    logging.info(f"Caption position: {capPos}, Title position: {titlePos}")
+    drawText(titleData, draw)
+    drawText(capData, draw)
 
     return canvas
 
@@ -339,7 +354,7 @@ def setupLogging() -> None:
     )
 
 def handleArgs() -> dict:
-    # TODO: Add
+    # TODO: Add 
     parser = buildParser()
     argsNS = parser.parse_args()
     args = vars(argsNS)  # Convert Namespace to dict for easier access
@@ -347,9 +362,9 @@ def handleArgs() -> dict:
     return args
 
 def main() -> None:
-    setupLogging()
-    buildBadge(Lifespan(years=1, months=2, days=3), "days", "I've been on GitHub for", "#0000FF", "clock")
-    #handleCLI()
+    #setupLogging()
+    #buildBadge(Lifespan(years=1, months=2, days=3), "days", "I've been on GitHub for", "#927B8E", "clock")
+    handleCLI()
 
 if __name__ == "__main__":
     main()
