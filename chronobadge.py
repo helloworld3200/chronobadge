@@ -12,7 +12,7 @@ from typing import cast, Tuple
 VER = "1.0.0"
 DESCRIPTION = "Generates GitHub profile badges that say how long you've been on GitHub."
 CREDITS = "Made by helloworld3200 on GitHub with ❤️!"
-NAME = "Chronobadge"
+NAME = "chronobadge"
 
 PRECISION = ["days", "months", "years"]
 
@@ -20,6 +20,7 @@ def buildParser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description = DESCRIPTION,
         epilog = CREDITS,
+        prog = NAME,
         # Append default values to the help message for each argument
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
@@ -60,7 +61,7 @@ def buildParser() -> argparse.ArgumentParser:
 
     # Some additional ones
     parser.add_argument(
-        "--version"
+        "-V", "--version", action="version", version=f"%(prog)s {VER}", help="Show program name & version number and exit"
     )
 
     return parser
