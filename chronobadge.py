@@ -8,6 +8,10 @@ import logging
 from iconipy import IconFactory
 from typing import cast, Tuple
 
+# Chronobadge main source file; run it with the args below to generate a minimal profile badge that shows how long you've been a user for.
+# Hopefully this code should be fairly self-explanatory/readable
+# Made by helloworld3200 on Github
+
 VER = "1.0.0"
 DESCRIPTION = "Generates GitHub profile badges that say how long you've been on GitHub."
 CREDITS = "Made by helloworld3200 on GitHub with ❤️!"
@@ -385,3 +389,5 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+# Try to keep this <500 LOC; it's meant to be a quick and easy CLI tool!
