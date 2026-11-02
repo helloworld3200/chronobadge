@@ -19,6 +19,9 @@ NAME = "chronobadge"
 
 PRECISION = ["days", "months", "years"]
 
+# idea: output SVG for better rendering but this is actually pretty hard to do because PIL is strictly raster-based and i dont wanna rework anything
+# but still good idea
+
 def buildParser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description = DESCRIPTION,
