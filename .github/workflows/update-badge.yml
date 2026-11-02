@@ -68,7 +68,7 @@ jobs:
             # disable workflows based on inactivity isnt documented, this hack seems to 'reset' the inactivity timer for NOW - but this may not work in the future!
             
             # BUT theres a chance that all of this isnt needed as commits made by gh-actions DO count as acitivity, in which case happy days.
-            # so theres '2 lines of defence' here essentially, but like i said its still a bit of a gamble. but yolo!
+            # so theres '2 lines of defence' here essentially, but like i said its still a bit of a gamble. but yolo! (this is getting so long; do we want to move this to a separate job or separate workflow entirely?)
 
             - name: Dispatch workflow keepalive signal
               run: |
