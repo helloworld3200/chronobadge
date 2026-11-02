@@ -1,0 +1,71 @@
+name: Generate Chronobadge
+
+on:
+  # Change this cronjob schedule if you want it to run less often than everyday
+  schedule:
+    - cron: 23 16 * * * 
+    # Why this random time? Because Actions can get congested around common times e.g. midnight, midday, etc
+    # so having it be something entirely random means its less likely to get delayed.
+  
+  # Run on push/pr to main branch so that the badge is updated when the config file is changed
+  push:
+    branches: [main]
+  pull_request:
+    branches:
+      - main
+
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+    generate-badge:
+        permissions:
+            # Give the default GITHUB_TOKEN write permission to commit and push the
+            # added or changed files to the repository. Needed for ACA! Do not remove!
+            contents: write
+
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v7
+
+            - name: Set up Python 3.14 with cache
+              uses: actions/setup-python@v7
+              with:
+                python-version: '3.14'
+                cache: 'pip'
+
+            - name: Update pip
+              run: |
+                python -m pip install --upgrade pip
+
+            - name: Install dependencies
+              run: |
+                pip install -r requirements.txt
+
+            - name: Run Chronobadge script with config file
+              run: |
+                python chronobadge.py --config config.jsonc
+
+            # One thing to remember:
+            # the GH actions docs actually say that workflows will be disabled after 60 days of 'inactivity'
+            # now im hoping that commits made by the action and not a human will still count as activity and this will keep working
+            # but if not then thats probably why youre here
+
+            # also keep in mind this is probably not intended behaviour
+            # because actions like Keepalive which are directly intended to simulate this effect have been taken down by GH for TOS violations
+            # so if this stops working then we need another compute provider to run this on a schedule like AWS Lambda, then store on S3?
+            # anyway thats all if this stops working - fingers crossed it doesn't!
+
+            # edit: we may wanna look at WaterLemon2k's implementation of a workflow that directly pings the GitHub API to keep workflows alive
+            # and if we want to implement that, i highly suggest we do it ourselves within our repo otherwise that action could be taken down for TOS
+            # at any time. the api ping is in the docs as well and very easy to do.
+
+            # if not then like i said plan B just use a different compute provider, but this should be fine for now!
+            # and if youre reading this and youre using my project right now: drop me an email! because if yours stopped working, mine also did :(
+
+            - name: Commit and push updated badge
+              uses: stefanzweifel/git-auto-commit-action@v7
+              with:
+                # MUST put skip ci here to avoid infinite loops of this workflow triggering itself
+                commit_message: "Automated badge update [skip ci]"
