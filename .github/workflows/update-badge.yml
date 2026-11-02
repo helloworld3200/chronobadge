@@ -61,6 +61,23 @@ jobs:
             # and if we want to implement that, i highly suggest we do it ourselves within our repo otherwise that action could be taken down for TOS
             # at any time. the api ping is in the docs as well and very easy to do.
 
+            # edit 2: i just read it; it's very simple. it just runs gh api to ping the enable workflow endpoint; heres the implementation for it below.
+            # BUT this may not work because its clearly an unintended workaround and could stop working at any time. because the behaviour for how they actually
+            # disable workflows based on inactivity isnt documented, this hack seems to 'reset' the inactivity timer for NOW - but this may not work in the future!
+            
+            # BUT theres a chance that all of this isnt needed as commits made by gh-actions DO count as acitivity, in which case happy days.
+            # so theres '2 lines of defence' here essentially, but like i said its still a bit of a gamble. but yolo!
+
+            - name: Dispatch workflow keepalive signal
+              run: |
+                gh api \
+                  --method PUT \
+                  -H "Accept: application/vnd.github+json" \
+                  -H "X-GitHub-Api-Version: 2026-03-10" \
+                  repos/${{ github.repository }}/actions/workflows/update-badge.yml/enable
+              env:
+                GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
             # if not then like i said plan B just use a different compute provider, but this should be fine for now!
             # and if youre reading this and youre using my project right now: drop me an email! because if yours stopped working, mine also did :(
 
