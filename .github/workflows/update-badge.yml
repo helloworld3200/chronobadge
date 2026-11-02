@@ -23,6 +23,8 @@ jobs:
             # Give the default GITHUB_TOKEN write permission to commit and push the
             # added or changed files to the repository. Needed for ACA! Do not remove!
             contents: write
+            # Also needed to call gh api actions
+            actions: write
 
         runs-on: ubuntu-latest
         steps:
