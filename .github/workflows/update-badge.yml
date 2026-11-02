@@ -48,6 +48,14 @@ jobs:
             # because actions like Keepalive which are directly intended to simulate this effect have been taken down by GH for TOS violations
             # so if this stops working then we need another compute provider to run this on a schedule like AWS Lambda, then store on S3?
             # anyway thats all if this stops working - fingers crossed it doesn't!
+
+            # edit: we may wanna look at WaterLemon2k's implementation of a workflow that directly pings the GitHub API to keep workflows alive
+            # and if we want to implement that, i highly suggest we do it ourselves within our repo otherwise that action could be taken down for TOS
+            # at any time. the api ping is in the docs as well and very easy to do.
+
+            # if not then like i said plan B just use a different compute provider, but this should be fine for now!
+            # and if youre reading this and youre using my project right now: drop me an email! because if yours stopped working, mine also did :(
+                
             - name: Commit and push updated badge
               uses: stefanzweifel/git-auto-commit-action@v7
               with:
