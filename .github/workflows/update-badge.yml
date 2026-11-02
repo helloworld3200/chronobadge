@@ -1,12 +1,20 @@
 name: Generate Chronobadge
 
 on:
+  # Change this cronjob schedule if you want it to run less often than everyday
   schedule:
     - cron: 23 16 * * * 
     # Why this random time? Because Actions can get congested around common times e.g. midnight, midday, etc
     # so having it be something entirely random means its less likely to get delayed.
+  
+  # Run on push/pr to main branch so that the badge is updated when the config file is changed
   push:
     branches: [main]
+  pull_request:
+    branches:
+      - main
+
+  # Allow manual trigger
   workflow_dispatch:
 
 jobs:
