@@ -55,8 +55,9 @@ jobs:
 
             # if not then like i said plan B just use a different compute provider, but this should be fine for now!
             # and if youre reading this and youre using my project right now: drop me an email! because if yours stopped working, mine also did :(
-                
+
             - name: Commit and push updated badge
               uses: stefanzweifel/git-auto-commit-action@v7
               with:
+                # MUST put skip ci here to avoid infinite loops of this workflow triggering itself
                 commit_message: "Automated badge update [skip ci]"
