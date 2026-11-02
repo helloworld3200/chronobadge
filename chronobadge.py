@@ -29,7 +29,7 @@ def buildParser() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "user", type=str, help="GitHub username"
+        "--user", type=str, help="GitHub username"
     )
 
     # The parser accepts:
@@ -365,12 +365,19 @@ def setupLogging() -> None:
         datefmt="%Y-%m-%d %H:%M:%S"
     )
 
-def handleArgs() -> dict:
+def handleArgs(
+        missingUserMsg: str = "the user argument was not provided, but it is required if no config file is specified."
+) -> dict:
     parser = buildParser()
     argsNS = parser.parse_args()
     cliArgs = vars(argsNS)  # Convert Namespace to dict for easier access
 
-    if not cliArgs["config"]: return cliArgs  # If no config file is specified, return the CLI args as-is
+    if not cliArgs["config"]: 
+        if cliArgs["user"]:
+            return cliArgs  # If no config file is specified, return the CLI args as-is
+        else:   
+            # If no config file is specified, the user arg must be provided; if not, raise an error
+            parser.error(missingUserMsg)
 
     # If config file specified, load it and parse it, then return the parsed dict, overriding any CLI args.
     with open(cliArgs["config"], "r", encoding="utf-8") as f:

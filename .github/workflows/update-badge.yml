@@ -1,12 +1,21 @@
 name: Generate Chronobadge
 
 on:
+  schedule:
+    - cron: 23 16 * * * 
+    # Why this random time? Because Actions can get congested around common times e.g. midnight, midday, etc
+    # so having it be something entirely random means its less likely to get delayed.
   push:
     branches: [main]
   workflow_dispatch:
 
 jobs:
-    GenerateBadge:
+    generate-badge:
+        permissions:
+            # Give the default GITHUB_TOKEN write permission to commit and push the
+            # added or changed files to the repository. Needed for ACA! Do not remove!
+            contents: write
+
         runs-on: ubuntu-latest
         steps:
             - name: Checkout repository
@@ -30,7 +39,16 @@ jobs:
               run: |
                 python chronobadge.py --config config.jsonc
 
-            - name: Upload badge artifact
-              uses: actions/upload-artifact@v3
+            # One thing to remember:
+            # the GH actions docs actually say that workflows will be disabled after 60 days of 'inactivity'
+            # now im hoping that commits made by the action and not a human will still count as activity and this will keep working
+            # but if not then thats probably why youre here
+
+            # also keep in mind this is probably not intended behaviour
+            # because actions like Keepalive which are directly intended to simulate this effect have been taken down by GH for TOS violations
+            # so if this stops working then we need another compute provider to run this on a schedule like AWS Lambda, then store on S3?
+            # anyway thats all if this stops working - fingers crossed it doesn't!
+            - name: Commit and push updated badge
+              uses: stefanzweifel/git-auto-commit-action@v7
               with:
-                name: chronobadge
+                commit_message: "Automated badge update [skip ci]"
