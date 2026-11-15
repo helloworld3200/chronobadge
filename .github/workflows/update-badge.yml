@@ -16,6 +16,8 @@ on:
 
   # Allow manual trigger
   workflow_dispatch:
+  # Allow other workflows to trigger
+  workflow_call: 
 
 jobs:
     generate-badge:
@@ -23,8 +25,6 @@ jobs:
             # Give the default GITHUB_TOKEN write permission to commit and push the
             # added or changed files to the repository. Needed for ACA! Do not remove!
             contents: write
-            # Also needed to call gh api actions
-            actions: write
 
         runs-on: ubuntu-latest
         steps:
@@ -49,6 +49,17 @@ jobs:
               run: |
                 python chronobadge.py --config config.jsonc
 
+            - name: Commit and push updated badge
+              uses: stefanzweifel/git-auto-commit-action@v7
+              with:
+                # MUST put skip ci here to avoid infinite loops of this workflow triggering itself
+                commit_message: "Automated badge update [skip ci]"
+    workflow-keepalive:
+        permissions:
+            # Needed to call gh api actions
+            actions: write
+        runs-on: ubuntu-latest
+        steps:
             # One thing to remember:
             # the GH actions docs actually say that workflows will be disabled after 60 days of 'inactivity'
             # now im hoping that commits made by the action and not a human will still count as activity and this will keep working
@@ -68,7 +79,7 @@ jobs:
             # disable workflows based on inactivity isnt documented, this hack seems to 'reset' the inactivity timer for NOW - but this may not work in the future!
             
             # BUT theres a chance that all of this isnt needed as commits made by gh-actions DO count as acitivity, in which case happy days.
-            # so theres '2 lines of defence' here essentially, but like i said its still a bit of a gamble. but yolo! (this is getting so long; do we want to move this to a separate job or separate workflow entirely?)
+            # so theres '2 lines of defence' here essentially, but like i said its still a bit of a gamble. but yolo! (this is getting so long; do we want to move this to a separate workflow entirely?)
 
             - name: Dispatch workflow keepalive signal
               run: |
@@ -82,9 +93,3 @@ jobs:
 
             # if not then like i said plan B just use a different compute provider, but this should be fine for now!
             # and if youre reading this and youre using my project right now: drop me an email! because if yours stopped working, mine also did :(
-
-            - name: Commit and push updated badge
-              uses: stefanzweifel/git-auto-commit-action@v7
-              with:
-                # MUST put skip ci here to avoid infinite loops of this workflow triggering itself
-                commit_message: "Automated badge update [skip ci]"
