@@ -9,7 +9,7 @@ WORK IN PROGRESS right now! Will update with full setup instructions when this i
 
 ## Sample
 
-![Sample Badge 1](https://raw.githubusercontent.com/helloworld3200/chronobadge/refs/heads/main/samples/SAMPLE1.png)
+![Sample Badge 1](https://raw.githubusercontent.com/helloworld3200/chronobadge/refs/heads/main/assets/SAMPLE1.png)
 
 ## Features
 - Customizable, clean and minimal badge design
@@ -22,11 +22,18 @@ WORK IN PROGRESS right now! Will update with full setup instructions when this i
 
 ## Setup
 
-1. Fork this repo (click the Fork button on the sidebar)
-2. Go to the settings of the forked repository and click "Detach fork"
-3. Edit the 'config.jsonc' file in your repo to ensure that the 'username' field in config.jsonc is your GitHub username
-4. Also, optionally any other optional settings in the file which you would like to your chosen values (although keeping them to the defaults is perfectly fine!)
-5. Commit the config change, and the badge should automatically start generating!
-6. View the created image in the 'out' directory of the repo - you can now link the created image in your GitHub profile README.
+1. Click the `Fork` button at the top right of this page (don't change the repository name unless you have to!)
+
+2. Click on the `Actions` tab on the top of the fork (should be next to `Code, Issues, Pull requests, Agents`)
+2. Click 
+
+2. Click on the `config.jsonc` file in your fork 
+3. ...and press the edit button at the top right of the file thats opened (looks like a pencil icon)
+4. Change what the `"username"` field is assigned to to your GitHub username (so `"helloworld3200"` should be replaced with `"YourGithubUsername"`)
+5. Also, optionally change any other settings in the config file which you would like to (although leaving them to the defaults is perfectly fine, as long as you've set `"username"`!)
+6. Click `Commit changes` on the top right, and click it again on the bottom left of the window that appears.
+7. View the created image in the 'out' directory of the repo - you can now link the created image in your GitHub profile README.
+
+
 
 *Licensed under MIT by helloworld3200*
